@@ -18,5 +18,3 @@ htmlcov/
 
 .env
 .env.*
-
-uv.lock
