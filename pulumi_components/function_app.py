@@ -13,7 +13,7 @@ class FunctionAppComponent(pulumi.ComponentResource):
             self, 
             name: str, 
             location: str, 
-            opts: pulumi.ResourceOptions | None = None
+            opts: pulumi.ResourceOptions | None = None,
     ):
         super().__init__(
             "FunctionApp", 

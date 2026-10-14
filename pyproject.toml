@@ -15,3 +15,7 @@ dependencies = [
 test = [
     "pytest>=8.0.0",
 ]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["pulumi_components", "pulumi_components.*"]
