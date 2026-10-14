@@ -8,13 +8,24 @@ env/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.tox/
+.nox/
 
 build/
 dist/
 *.egg-info/
 
 .coverage
+.coverage.*
+coverage.xml
 htmlcov/
 
 .env
 .env.*
+
+# Pulumi local state and working files
+.pulumi/
+
+# Azure Functions local settings and installed dependencies
+local.settings.json
+.python_packages/

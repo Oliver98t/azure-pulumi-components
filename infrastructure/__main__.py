@@ -2,7 +2,7 @@ import pulumi
 
 from pulumi_components.function_app import FunctionAppComponent
 
-base_name = f"{pulumi.get_project()}-{pulumi.get_stack()}".lower()
+base_name = f"{pulumi.get_project()}-function-app".lower()
 location = pulumi.Config("azure-native").get("location") or "WestUS2"
 
 function_app = FunctionAppComponent(

@@ -8,6 +8,29 @@ resolution-markers = [
 ]
 
 [[package]]
+name = "azure-pulumi-components"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "pulumi" },
+    { name = "pulumi-azure-native" },
+]
+
+[package.dev-dependencies]
+test = [
+    { name = "pytest" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pulumi", specifier = ">=3.0.0,<4.0.0" },
+    { name = "pulumi-azure-native", specifier = ">=3.0.0,<4.0.0" },
+]
+
+[package.metadata.requires-dev]
+test = [{ name = "pytest", specifier = ">=8.0.0" }]
+
+[[package]]
 name = "colorama"
 version = "0.4.6"
 source = { registry = "https://pypi.org/simple" }
@@ -309,29 +332,6 @@ dependencies = [
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ca/81/afc7585aa7b395f87565817644c1c840fdd06400134eef64610d515e7ec3/pulumi-3.268.0-py3-none-any.whl", hash = "sha256:0a6d0e85fb3b60eb4d8e1bbf07528fff1b45cd2b45d92cc8ac8bb6703f520325", size = 427519, upload-time = "2026-10-07T10:26:17.592Z" },
 ]
-
-[[package]]
-name = "pulumi-azure-components"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "pulumi" },
-    { name = "pulumi-azure-native" },
-]
-
-[package.dev-dependencies]
-test = [
-    { name = "pytest" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "pulumi", specifier = ">=3.0.0,<4.0.0" },
-    { name = "pulumi-azure-native", specifier = ">=3.0.0,<4.0.0" },
-]
-
-[package.metadata.requires-dev]
-test = [{ name = "pytest", specifier = ">=8.0.0" }]
 
 [[package]]
 name = "pulumi-azure-native"
