@@ -1,6 +1,7 @@
 # Azure Pulumi Components
 
-Reusable Python Pulumi components for deploying an Azure Function App. The example
+Reusable Python Pulumi components for deploying Azure Function Apps and Web Apps.
+The Function App example
 provisions a resource group, storage account, Linux Consumption plan, Function App,
 Log Analytics workspace, and Application Insights. The sample function exposes
 `/api/hello` and requires a function key.
@@ -21,9 +22,11 @@ Run the setup and test commands below from the repository root.
 | Path | Purpose |
 | --- | --- |
 | [pulumi_components/function_app.py](pulumi_components/function_app.py) | Reusable `FunctionAppComponent` |
+| [pulumi_components/web_app.py](pulumi_components/web_app.py) | Reusable `WebAppComponent` with VNet integration |
 | [infrastructure/__main__.py](infrastructure/__main__.py) | Example Pulumi program and stack outputs |
 | [source/function-app](source/function-app) | Azure Functions application and runtime requirements |
 | [tests/test_function_app.py](tests/test_function_app.py) | Component tests using Pulumi mocks |
+| [tests/test_web_app.py](tests/test_web_app.py) | Web App configuration and VNet integration tests |
 | [deploy_func.sh](deploy_func.sh) | Infrastructure deployment and function publishing |
 
 ## Using uv
@@ -88,6 +91,46 @@ dependencies during the remote build; adding a root dependency with `uv add`
 does not add it to the deployed function.
 
 ## Deploying to Azure
+
+### Web App with VNet Integration
+
+`WebAppComponent` creates a resource group, Linux Basic B1 App Service plan,
+Python 3.12 Web App, Log Analytics workspace, and Application Insights. It accepts
+an existing subnet ID as either a string or a Pulumi `Output[str]`; it does not
+create or modify the VNet or subnet.
+
+```python
+import pulumi
+
+from pulumi_components.web_app import WebAppComponent
+
+config = pulumi.Config()
+web_app = WebAppComponent(
+    name="my-web-app",
+    location="uksouth",
+    subnet_id=config.require("webAppSubnetId"),
+)
+
+pulumi.export("web_app_name", web_app.web_app.name)
+pulumi.export("web_app_url", web_app.web_app_url)
+```
+
+Set `webAppSubnetId` to the full Azure resource ID of the integration subnet.
+When creating the subnet in the same Pulumi program, pass `subnet.id` instead to
+preserve the resource dependency.
+
+The subnet must be in the same region as the Web App, delegated to
+`Microsoft.Web/serverFarms`, and sized at least `/28` (`/26` is recommended for
+scaling). Ensure the deployment identity has permission to join the subnet.
+The B1 plan supports regional VNet integration and incurs charges.
+
+VNet integration provides outbound access to the VNet; it does not make the
+Web App's inbound endpoint private or route all internet-bound traffic through
+the VNet. HTTPS is required, Always On is enabled, and remote build is configured
+for code deployments. Application code must be published separately; the component
+does not deploy code. The existing Function App example remains unchanged.
+
+### Function App Example
 
 Authenticate, install the base dependencies, and select the example stack:
 
