@@ -1,6 +1,7 @@
 import pulumi
 from pulumi_azure_native import (
     applicationinsights,
+    monitor,
     operationalinsights,
     resources,
     web,
@@ -18,7 +19,8 @@ class WebAppComponent(pulumi.ComponentResource):
         super().__init__("WebApp", name, None, opts)
 
         child_opts = pulumi.ResourceOptions(parent=self)
-
+        
+        self.outputs = {}
         self.resource_group = resources.ResourceGroup(
             "resource-group",
             resource_group_name=f"{name}-rg",
@@ -30,6 +32,7 @@ class WebAppComponent(pulumi.ComponentResource):
             },
             opts=child_opts,
         )
+        self.outputs['resource_group_name'] = self.resource_group.name
 
         self.log_analytics_workspace = operationalinsights.Workspace(
             f"{name}-logs",
@@ -49,6 +52,7 @@ class WebAppComponent(pulumi.ComponentResource):
             workspace_resource_id=self.log_analytics_workspace.id,
             opts=child_opts,
         )
+        self.outputs['application_insights'] = self.application_insights.name
 
         self.service_plan = web.AppServicePlan(
             "service-plan",
@@ -60,6 +64,7 @@ class WebAppComponent(pulumi.ComponentResource):
             sku=web.SkuDescriptionArgs(name="B1", tier="Basic"),
             opts=child_opts,
         )
+        self.outputs['service_plan_name'] = self.service_plan.name
 
         self.web_app = web.WebApp(
             "web-app",
@@ -72,14 +77,11 @@ class WebAppComponent(pulumi.ComponentResource):
             https_only=True,
             site_config=web.SiteConfigArgs(
                 always_on=True,
+                app_command_line="python server.py",
                 app_settings=[
                     web.NameValuePairArgs(
                         name="APPLICATIONINSIGHTS_CONNECTION_STRING",
                         value=self.application_insights.connection_string,
-                    ),
-                    web.NameValuePairArgs(
-                        name="ApplicationInsightsAgent_EXTENSION_VERSION",
-                        value="~3",
                     ),
                     web.NameValuePairArgs(
                         name="SCM_DO_BUILD_DURING_DEPLOYMENT",
@@ -90,16 +92,22 @@ class WebAppComponent(pulumi.ComponentResource):
             ),
             opts=child_opts,
         )
-
-        self.web_app_url = pulumi.Output.concat(
-            "https://",
-            self.web_app.default_host_name,
+        self.diagnostic_setting = monitor.DiagnosticSetting(
+            f"{name}-console-logs",
+            resource_uri=self.web_app.id,
+            workspace_id=self.log_analytics_workspace.id,
+            log_analytics_destination_type="Dedicated",
+            logs=[
+                monitor.DiagnosticsLogSettingsArgs(
+                    category="AppServiceConsoleLogs",
+                    enabled=True,
+                ),
+            ],
+            opts=child_opts,
         )
-        self.register_outputs({
-            "resource_group_name": self.resource_group.name,
-            "application_insights_name": self.application_insights.name,
-            "service_plan_name": self.service_plan.name,
-            "web_app_name": self.web_app.name,
-            "web_app_url": self.web_app_url,
-            "subnet_id": self.web_app.virtual_network_subnet_id,
-        })
+        self.outputs['web_app_name'] = self.web_app.name
+        self.outputs['web_app_url'] = pulumi.Output.concat(
+                                            "https://",
+                                            self.web_app.default_host_name,
+                                        )
+        self.register_outputs(self.outputs)

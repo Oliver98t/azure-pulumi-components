@@ -1,28 +1,37 @@
 import pulumi
 
 from pulumi_components.function_app import FunctionAppComponent
+from pulumi_components.web_app import WebAppComponent
 
-base_name = f"{pulumi.get_project()}-function-app".lower()
+def export_component_outputs(prefix_name: str, outputs: dict):
+	for output in outputs:
+		pulumi.export(f"{prefix_name}-{output}", outputs[output])
+
+base_name = f"{pulumi.get_project()}".lower()
 location = pulumi.Config("azure-native").get("location") or "WestUS2"
 
+# function app test
+#####################################################################
 function_app = FunctionAppComponent(
-    name=base_name,
+    name=f"{base_name}-function-app",
 	location=location,
 )
+#####################################################################
 
-pulumi.export("resource_group_name", function_app.resource_group.name)
-pulumi.export("storage_account_name", function_app.storage_account.name)
-pulumi.export(
-	"application_insights_name",
-	function_app.application_insights.name,
-)
-pulumi.export("service_plan_name", function_app.service_plan.name)
-pulumi.export("function_app_name", function_app.function_app.name)
-pulumi.export(
-	"function_app_url",
-	pulumi.Output.concat(
-		"https://",
-		function_app.function_app.default_host_name,
-	),
+# web app app test
+#####################################################################
+network_stack = pulumi.StackReference(
+    f"{pulumi.get_organization()}/azure-pulumi-infrastructure/{pulumi.get_stack()}"
 )
 
+subnet_id = network_stack.require_output("subnet_id")
+
+web_app = WebAppComponent(
+    name=f"{base_name}-web-app",
+    location=location,
+    subnet_id=subnet_id
+)
+#####################################################################
+
+export_component_outputs("function-app", function_app.ouptuts)
+export_component_outputs("web-app", web_app.outputs)

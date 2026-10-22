@@ -25,6 +25,8 @@ Run the setup and test commands below from the repository root.
 | [pulumi_components/web_app.py](pulumi_components/web_app.py) | Reusable `WebAppComponent` with VNet integration |
 | [infrastructure/__main__.py](infrastructure/__main__.py) | Example Pulumi program and stack outputs |
 | [source/function-app](source/function-app) | Azure Functions application and runtime requirements |
+| [source/web-app](source/web-app) | FastAPI application and runtime requirements |
+| [deploy_web_app.sh](deploy_web_app.sh) | Code-only ZIP deployment for the Web App |
 | [tests/test_function_app.py](tests/test_function_app.py) | Component tests using Pulumi mocks |
 | [tests/test_web_app.py](tests/test_web_app.py) | Web App configuration and VNet integration tests |
 | [deploy_func.sh](deploy_func.sh) | Infrastructure deployment and function publishing |
@@ -129,6 +131,102 @@ Web App's inbound endpoint private or route all internet-bound traffic through
 the VNet. HTTPS is required, Always On is enabled, and remote build is configured
 for code deployments. Application code must be published separately; the component
 does not deploy code. The existing Function App example remains unchanged.
+
+The Web App diagnostic setting exports `AppServiceConsoleLogs` to the component's
+Log Analytics workspace using resource-specific tables (`Dedicated`). This is
+separate from the application's OpenTelemetry export to Application Insights.
+Apply it with `pulumi up` from `infrastructure`; no application redeployment is
+required for this diagnostic setting. Only new console logs are exported, and
+ingestion can take several minutes. Log Analytics ingestion charges may apply.
+Generate requests to the app, then query the component's workspace:
+
+```kusto
+AppServiceConsoleLogs
+| where TimeGenerated > ago(1h)
+| project TimeGenerated, Level, ResultDescription
+| order by TimeGenerated desc
+```
+
+### FastAPI Web App Example
+
+The sample in [source/web-app](source/web-app) uses FastAPI and Uvicorn.
+`GET /` returns `Hello from Azure Web App!` as plain text; `/docs` provides
+interactive API documentation.
+
+The sample uses application-managed `azure-monitor-opentelemetry` to collect
+FastAPI request traces, supported outbound dependencies, metrics, and logs from
+the `web_app` logger. The component supplies
+`APPLICATIONINSIGHTS_CONNECTION_STRING` and does not enable the App Service
+Application Insights agent, avoiding conflicts with agent-bundled Python libraries.
+Use `logging.getLogger("web_app")` (or a child such as `web_app.orders`) for
+application logs sent to Application Insights. Console output remains available;
+arbitrary stdout and other loggers are not exported by the SDK, but console
+output is exported separately through the App Service diagnostic setting.
+Without a connection string, local runs emit a warning and use console logging
+only. Invalid configured connection strings are not silently ignored.
+The `server.py` entry point configures both Python and Uvicorn logging: messages
+below ERROR (including startup, access logs, and warnings) go to stdout; ERROR
+and CRITICAL go to stderr. Azure SDK logging is limited to warnings and errors.
+This prevents informational server logs being classified as errors because of
+their output stream. Application Insights retains structured Python severity.
+Azure platform messages outside this Python process have their own logging.
+
+Run it locally from the repository root:
+
+```bash
+cd source/web-app
+uv run --no-project --with-requirements requirements.txt \
+  python server.py
+```
+
+The Web App component sets the Azure startup command to:
+
+```text
+python server.py
+```
+
+When updating to this entry point, deploy the application code (including
+`server.py`) with `bash deploy_web_app.sh`, then apply the startup command
+change with `pulumi up` from `infrastructure`. Existing ingested records are
+not reclassified.
+
+Apply this configuration with `pulumi up` from `infrastructure`, then publish
+the application code separately:
+
+```bash
+bash deploy_web_app.sh
+```
+
+When migrating from the injected agent, apply `pulumi up` first to remove
+`ApplicationInsightsAgent_EXTENSION_VERSION`, then run the deployment script
+to install and publish the application-managed SDK. Infrastructure deployment
+alone does not install the new application dependencies. After deployment,
+request `/` and check Application Insights transaction search and the `traces`
+table for `Serving the greeting`; telemetry ingestion can take several minutes.
+
+The script requires Bash, `zip`, Pulumi CLI, and Azure CLI. Sign in to Azure,
+select the correct subscription, and select the intended Pulumi stack first.
+It reads that stack's Web App name and resource group, packages the contents of
+`source/web-app` at the ZIP root, and uses
+`az webapp deploy --type zip --async true --track-status false`.
+It excludes local virtual environments, caches, Git metadata, `node_modules`,
+and `.env*` files, and removes its temporary ZIP on exit. Keep other secrets
+outside the application directory.
+
+Startup tracking is explicitly disabled so the CLI does not continue polling
+Linux site readiness after asynchronous submission.
+The script exits after submission rather than waiting for the remote build and
+startup, reducing exposure to gateway timeouts during long-running deployments.
+Successful submission does not prove the deployment succeeded. It prints commands
+to check the latest deployment status and logs; status `3` means failed and `4`
+means successful. Confirm the deployment ID is the one you submitted (the latest
+record can change if another deployment starts), then verify the application URL
+responds successfully. If submission returns a gateway error, inspect deployment
+status before retrying because Azure may still have accepted the deployment.
+
+The script works from any working directory and does not create or configure
+infrastructure. The enabled remote build installs the application requirements;
+these are separate from the root Pulumi dependencies.
 
 ### Function App Example
 

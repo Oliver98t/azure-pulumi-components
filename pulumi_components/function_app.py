@@ -21,7 +21,7 @@ class FunctionAppComponent(pulumi.ComponentResource):
             None, 
             opts
         )
-
+        self.ouptuts = {}
         self.resource_group = resources.ResourceGroup(
             "resource-group",
             resource_group_name=f"{name}-rg",
@@ -32,6 +32,7 @@ class FunctionAppComponent(pulumi.ComponentResource):
                 "managed-by": "pulumi",
             },
         )
+        self.ouptuts['resource_group_name'] = self.resource_group.name
 
         self.log_analytics_workspace = operationalinsights.Workspace(
             f"{name}-logs",
@@ -49,6 +50,8 @@ class FunctionAppComponent(pulumi.ComponentResource):
             kind="web",
             workspace_resource_id=self.log_analytics_workspace.id,
         )
+        self.ouptuts['application_insights_name'] = self.application_insights.name
+
 
         # Storage names are globally unique, lowercase, and limited to 24 characters.
         storage_name_prefix = name.replace("-", "")
@@ -62,10 +65,13 @@ class FunctionAppComponent(pulumi.ComponentResource):
             kind="StorageV2",
             sku=storage.SkuArgs(name="Standard_LRS"),
         )
+        self.ouptuts['storage_account_name'] = self.storage_account.name
+
         storage_keys = storage.list_storage_account_keys_output(
             resource_group_name=self.resource_group.name,
             account_name=self.storage_account.name,
         )
+
         storage_connection_string = pulumi.Output.all(
             self.storage_account.name,
             storage_keys.keys,
@@ -90,6 +96,7 @@ class FunctionAppComponent(pulumi.ComponentResource):
                 tier="Dynamic",
             ),
         )
+        self.ouptuts['service_plan_name'] = self.service_plan.name
 
         self.function_app = web.WebApp(
             "function-app",
@@ -121,14 +128,10 @@ class FunctionAppComponent(pulumi.ComponentResource):
                 linux_fx_version="Python|3.12",
             ),
         )
-        self.register_outputs({
-            "resource_group_name": self.resource_group.name,
-            "storage_account_name": self.storage_account.name,
-            "application_insights_name": self.application_insights.name,
-            "service_plan_name": self.service_plan.name,
-            "function_app_name": self.function_app.name,
-            "function_app_url": pulumi.Output.concat(
-                "https://",
-                self.function_app.default_host_name,
-            ),
-        })
+        self.ouptuts['function_app_name'] = self.function_app.name
+        self.ouptuts['function_app_url'] = pulumi.Output.concat(
+                                        "https://",
+                                        self.function_app.default_host_name,
+                                    )
+
+        self.register_outputs(self.ouptuts)

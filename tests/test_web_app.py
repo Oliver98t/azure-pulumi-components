@@ -57,7 +57,7 @@ def test_web_app_component_creates_expected_resources():
         component.resource_group.name,
         component.service_plan.name,
         component.web_app.name,
-        component.web_app_url,
+        component.outputs["web_app_url"],
         component.web_app.location,
         component.resource_group.tags,
     ).apply(assert_outputs)
@@ -84,6 +84,9 @@ def test_web_app_component_configures_linux_plan_and_vnet_integration(
         assert https_only is True
         assert site_config["always_on"] is True
         assert site_config["linux_fx_version"] == "Python|3.12"
+        assert site_config["app_command_line"] == (
+            "python server.py"
+        )
         app_inputs = next(
             resource.inputs
             for resource in configure_pulumi_mocks.resources
@@ -95,7 +98,6 @@ def test_web_app_component_configures_linux_plan_and_vnet_integration(
         }
         assert settings == {
             "APPLICATIONINSIGHTS_CONNECTION_STRING": "InstrumentationKey=test-key",
-            "ApplicationInsightsAgent_EXTENSION_VERSION": "~3",
             "SCM_DO_BUILD_DURING_DEPLOYMENT": "1",
         }
 
@@ -107,6 +109,34 @@ def test_web_app_component_configures_linux_plan_and_vnet_integration(
         component.web_app.kind,
         component.web_app.https_only,
         component.web_app.site_config,
+    ).apply(assert_outputs)
+
+
+@pulumi.runtime.test
+def test_web_app_component_exports_console_logs_to_workspace(
+    configure_pulumi_mocks: Mocks,
+):
+    component = WebAppComponent("sample", "uksouth", SUBNET_ID)
+
+    def assert_outputs(values):
+        _, workspace_id, destination_type, logs = values
+        diagnostic_inputs = next(
+            resource.inputs
+            for resource in configure_pulumi_mocks.resources
+            if resource.typ == "azure-native:monitor:DiagnosticSetting"
+        )
+        assert diagnostic_inputs["resourceUri"] == "web-app_id"
+        assert workspace_id == "sample-logs_id"
+        assert destination_type == "Dedicated"
+        assert len(logs) == 1
+        assert logs[0]["category"] == "AppServiceConsoleLogs"
+        assert logs[0]["enabled"] is True
+
+    return pulumi.Output.all(
+        component.diagnostic_setting.id,
+        component.diagnostic_setting.workspace_id,
+        component.diagnostic_setting.log_analytics_destination_type,
+        component.diagnostic_setting.logs,
     ).apply(assert_outputs)
 
 
