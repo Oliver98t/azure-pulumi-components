@@ -1,6 +1,7 @@
 # Azure Pulumi Components
 
-Reusable Python Pulumi components for deploying Azure Function Apps and Web Apps.
+Reusable Python Pulumi components for deploying Azure Function Apps, Web Apps,
+and Static Web Apps.
 The Function App example
 provisions a resource group, storage account, Linux Consumption plan, Function App,
 Log Analytics workspace, and Application Insights. The sample function exposes
@@ -14,6 +15,7 @@ Log Analytics workspace, and Application Insights. The sample function exposes
 - [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) and an Azure subscription.
 - [Azure Functions Core Tools v4](https://learn.microsoft.com/azure/azure-functions/functions-run-local)
   to publish the function code.
+- Node.js 20.19+ on the 20.x line, or 22.12+ with npm, to build the Vite frontend.
 
 Run the setup and test commands below from the repository root.
 
@@ -23,12 +25,16 @@ Run the setup and test commands below from the repository root.
 | --- | --- |
 | [pulumi_components/function_app.py](pulumi_components/function_app.py) | Reusable `FunctionAppComponent` |
 | [pulumi_components/web_app.py](pulumi_components/web_app.py) | Reusable `WebAppComponent` with VNet integration |
+| [pulumi_components/static_web_app.py](pulumi_components/static_web_app.py) | Reusable public `StaticWebAppComponent` |
 | [infrastructure/__main__.py](infrastructure/__main__.py) | Example Pulumi program and stack outputs |
 | [source/function-app](source/function-app) | Azure Functions application and runtime requirements |
 | [source/web-app](source/web-app) | FastAPI application and runtime requirements |
+| [source/frontend](source/frontend) | React and Vite frontend for Static Web Apps |
 | [deploy_web_app.sh](deploy_web_app.sh) | Code-only ZIP deployment for the Web App |
+| [deploy_static_web_app.sh](deploy_static_web_app.sh) | Build and publish the React frontend to Static Web Apps |
 | [tests/test_function_app.py](tests/test_function_app.py) | Component tests using Pulumi mocks |
 | [tests/test_web_app.py](tests/test_web_app.py) | Web App configuration and VNet integration tests |
+| [tests/test_static_web_app.py](tests/test_static_web_app.py) | Static Web App hosting, outputs, and resource parenting tests |
 | [deploy_func.sh](deploy_func.sh) | Infrastructure deployment and function publishing |
 
 ## Using uv
@@ -94,6 +100,114 @@ does not add it to the deployed function.
 
 ## Deploying to Azure
 
+### Public Static Web App
+
+`StaticWebAppComponent` creates a resource group and a public Azure Static Web App
+on the Free plan. Azure provides the default `azurestaticapps.net` hostname and
+managed HTTPS. No VNet, subnet, private endpoint, App Service plan, or custom DNS
+is required.
+
+```python
+import pulumi
+
+from pulumi_components.static_web_app import StaticWebAppComponent
+
+frontend = StaticWebAppComponent(
+    name="my-frontend",
+    location="westus2",
+)
+
+for key, value in frontend.outputs.items():
+    pulumi.export(key, value)
+```
+
+Outputs are `resource_group_name`, `static_web_app_name`, and
+`static_web_app_url`. Choose an Azure region supported by Static Web Apps, such as
+`westus2`; its available resource regions differ from App Service.
+
+The [example Pulumi program](infrastructure/__main__.py) includes this component
+alongside the existing Function App and Web App, exporting its outputs with the
+`static-web-app-` prefix. Run `pulumi preview` and then `pulumi up` from
+`infrastructure` to provision the configured resources. The existing Web App
+example still requires its network stack and integration subnet.
+
+This component provisions hosting only: it does not deploy frontend files,
+configure repository integration, create custom domains, or modify backend CORS.
+Publish your compiled frontend separately using
+[the Static Web Apps CLI](https://learn.microsoft.com/azure/static-web-apps/static-web-apps-cli-deploy)
+or a deployment workflow. Keep deployment tokens in your CI secret store, not
+source control or public stack outputs.
+
+For a browser-rendered frontend calling the FastAPI App Service directly, configure
+the API URL in your frontend and allow the frontend's exact HTTPS origin in the
+API's CORS policy. The API must be reachable from users' browsers. Static Web Apps
+does not provide a private network path to the API, and CORS is not authentication.
+Frontend configuration is visible to users; never include backend secrets in it.
+
+### React and Vite Frontend Example
+
+The sample in [source/frontend](source/frontend) uses React and Vite, with a simple
+interactive counter managed by React state. It runs independently of the FastAPI
+backend. The UI is defined in [App.jsx](source/frontend/src/App.jsx).
+
+From the repository root:
+
+```bash
+cd source/frontend
+npm ci
+npm run dev
+```
+
+Open the local URL printed by Vite. To build and preview the production files:
+
+```bash
+npm run build
+npm run preview
+```
+
+The build produces `source/frontend/dist`, which can be published to the Static
+Web App. For a deployment workflow, use `source/frontend` as the app location,
+`npm run build` as the build command, and `dist` as the output location relative
+to the app. The Vite development and preview servers are for local use, not
+production hosting. Dependencies and generated build files are ignored by Git;
+the npm lockfile is committed for reproducible installs.
+
+### Deploying the Frontend
+
+After provisioning the infrastructure, sign in with `az login`, select the target
+Azure subscription with `az account set --subscription <subscription-id>`, and
+select the matching Pulumi stack in `infrastructure`. Your Azure identity needs
+permission to retrieve the Static Web App's deployment token.
+
+From the repository root:
+
+```bash
+bash deploy_static_web_app.sh
+```
+
+The script reads `static-web-app-static_web_app_name` and
+`static-web-app-resource_group_name` from the selected stack, installs the locked
+npm dependencies, builds the frontend, and publishes `dist` to the **production**
+environment using the pinned Static Web Apps CLI. It updates frontend content
+only; it does not run `pulumi up` or deploy the FastAPI backend.
+
+The deployment token is fetched using Azure CLI and passed to the deployment
+process through `SWA_CLI_DEPLOYMENT_TOKEN`, not command-line arguments or a file.
+Shell tracing is disabled to avoid logging it. Do not enable verbose/debug
+logging when handling deployment credentials.
+
+The CLI may download its deployment client on first use, so internet access is
+required. Build, authentication, and CLI failures stop the script. After a
+successful deployment, open the URL from
+`pulumi stack output static-web-app-static_web_app_url` in `infrastructure`
+to verify the live site.
+
+Run the deployment script's mocked success and failure tests without Azure access:
+
+```bash
+bash tests/test_deploy_static_web_app.sh
+```
+
 ### Web App with VNet Integration
 
 `WebAppComponent` creates a resource group, Linux Basic B1 App Service plan,
@@ -150,8 +264,8 @@ AppServiceConsoleLogs
 ### FastAPI Web App Example
 
 The sample in [source/web-app](source/web-app) uses FastAPI and Uvicorn.
-`GET /check` returns `Hello from Azure Web App!` as plain text; `/docs` provides
-interactive API documentation.
+`GET /check` returns `{"message": "Hello from Azure Web App!"}` as JSON;
+`/docs` provides interactive API documentation.
 
 The sample uses application-managed `azure-monitor-opentelemetry` to collect
 FastAPI request traces, supported outbound dependencies, metrics, and logs from

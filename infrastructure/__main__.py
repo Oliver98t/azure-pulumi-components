@@ -1,6 +1,7 @@
 import pulumi
 
 from pulumi_components.function_app import FunctionAppComponent
+from pulumi_components.static_web_app import StaticWebAppComponent
 from pulumi_components.web_app import WebAppComponent
 
 def export_component_outputs(prefix_name: str, outputs: dict):
@@ -33,5 +34,11 @@ web_app = WebAppComponent(
 )
 #####################################################################
 
+static_web_app = StaticWebAppComponent(
+    name=f"{base_name}-frontend",
+    location=location,
+)
+
 export_component_outputs("function-app", function_app.ouptuts)
 export_component_outputs("web-app", web_app.outputs)
+export_component_outputs("static-web-app", static_web_app.outputs)

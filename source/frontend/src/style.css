@@ -1,0 +1,79 @@
+:root {
+  font-family: system-ui, sans-serif;
+  color: #172b4d;
+  background: #eef4fb;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  padding: 2rem 1rem;
+  display: grid;
+  place-items: center;
+}
+
+#root {
+  width: min(100%, 42rem);
+}
+
+.card {
+  padding: clamp(1.5rem, 5vw, 3.5rem);
+  border: 1px solid #d7e3f0;
+  border-radius: 1.5rem;
+  background: #fff;
+  box-shadow: 0 1rem 3rem #172b4d0d;
+}
+
+.eyebrow {
+  color: #005a9e;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+h1 {
+  margin: 1rem 0;
+  font-size: clamp(2rem, 6vw, 3.25rem);
+  line-height: 1.1;
+}
+
+.intro,
+.hint {
+  color: #465970;
+  line-height: 1.7;
+}
+
+button {
+  margin-top: 1rem;
+  padding: 0.8rem 1.4rem;
+  border: 0;
+  border-radius: 0.6rem;
+  color: #fff;
+  background: #005a9e;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #004578;
+}
+
+a {
+  color: #005a9e;
+  text-underline-offset: 0.2em;
+}
+
+:focus-visible {
+  outline: 3px solid #005a9e;
+  outline-offset: 4px;
+}

@@ -4,7 +4,6 @@ import sys
 
 from azure.monitor.opentelemetry import configure_azure_monitor
 from fastapi import FastAPI
-from fastapi.responses import PlainTextResponse
 
 logging.basicConfig(level=logging.INFO, stream=sys.stdout)
 logging.getLogger("azure").setLevel(logging.WARNING)
@@ -22,7 +21,7 @@ else:
 app = FastAPI()
 
 
-@app.get("/check", response_class=PlainTextResponse)
-def hello() -> str:
+@app.get("/check")
+def hello() -> dict[str, str]:
     logger.info("Serving the greeting")
-    return "Hello from Azure Web App!"
+    return {"message": "Hello from Azure Web App!"}

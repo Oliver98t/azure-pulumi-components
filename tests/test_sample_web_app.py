@@ -45,8 +45,8 @@ def test_local_greeting_and_console_logging_without_connection_string(
             assert client.get("/docs").status_code == 200
 
     assert response.status_code == 200
-    assert response.text == "Hello from Azure Web App!"
-    assert response.headers["content-type"].startswith("text/plain")
+    assert response.json() == {"message": "Hello from Azure Web App!"}
+    assert response.headers["content-type"].startswith("application/json")
     assert "Serving the greeting" in caplog.text
 
 
