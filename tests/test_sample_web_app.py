@@ -40,7 +40,8 @@ def test_local_greeting_and_console_logging_without_connection_string(
 
     with caplog.at_level(logging.INFO, logger="web_app"):
         with TestClient(module.app) as client:
-            response = client.get("/")
+            response = client.get("/check")
+            assert client.get("/").status_code == 404
             assert client.get("/docs").status_code == 200
 
     assert response.status_code == 200

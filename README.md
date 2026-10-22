@@ -150,7 +150,7 @@ AppServiceConsoleLogs
 ### FastAPI Web App Example
 
 The sample in [source/web-app](source/web-app) uses FastAPI and Uvicorn.
-`GET /` returns `Hello from Azure Web App!` as plain text; `/docs` provides
+`GET /check` returns `Hello from Azure Web App!` as plain text; `/docs` provides
 interactive API documentation.
 
 The sample uses application-managed `azure-monitor-opentelemetry` to collect
@@ -201,7 +201,7 @@ When migrating from the injected agent, apply `pulumi up` first to remove
 `ApplicationInsightsAgent_EXTENSION_VERSION`, then run the deployment script
 to install and publish the application-managed SDK. Infrastructure deployment
 alone does not install the new application dependencies. After deployment,
-request `/` and check Application Insights transaction search and the `traces`
+request `/check` and check Application Insights transaction search and the `traces`
 table for `Serving the greeting`; telemetry ingestion can take several minutes.
 
 The script requires Bash, `zip`, Pulumi CLI, and Azure CLI. Sign in to Azure,
