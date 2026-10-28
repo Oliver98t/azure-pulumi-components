@@ -1,1 +1,3 @@
+add authentication flow via entra ID from frontend -> backend (web app/function app) []
+add observability method []
 add tagging/versioning to the pipeline []

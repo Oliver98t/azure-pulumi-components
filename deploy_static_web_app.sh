@@ -12,7 +12,7 @@ if [[ -z "$static_web_app_name" || -z "$resource_group" ]]; then
   exit 1
 fi
 
-cd source/frontend
+cd source/static-web-app
 
 VITE_ENV=dev pnpm build
 
