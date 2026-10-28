@@ -14,6 +14,7 @@ class WebAppComponent(pulumi.ComponentResource):
         name: str,
         location: str,
         subnet_id: pulumi.Input[str],
+        allowed_origins: pulumi.Input[str] | None = None,
         opts: pulumi.ResourceOptions | None = None,
     ):
         super().__init__("WebApp", name, None, opts)
@@ -79,6 +80,10 @@ class WebAppComponent(pulumi.ComponentResource):
                 always_on=True,
                 app_command_line="python server.py",
                 app_settings=[
+                    web.NameValuePairArgs(
+                        name="CORS_ORIGINS",
+                        value=allowed_origins,
+                    ),
                     web.NameValuePairArgs(
                         name="APPLICATIONINSIGHTS_CONNECTION_STRING",
                         value=self.application_insights.connection_string,

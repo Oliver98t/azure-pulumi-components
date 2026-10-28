@@ -4,6 +4,7 @@ import sys
 
 from azure.monitor.opentelemetry import configure_azure_monitor
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 logging.basicConfig(level=logging.INFO, stream=sys.stdout)
 logging.getLogger("azure").setLevel(logging.WARNING)
@@ -19,7 +20,15 @@ else:
     )
 
 app = FastAPI()
-
+origins = os.environ.get('CORS_ORIGINS').split(',')
+logger.info(f'Allowed origins: {origins}')
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=False,
+    allow_methods=["GET"],
+    allow_headers=["*"],
+)
 
 @app.get("/check")
 def hello() -> dict[str, str]:

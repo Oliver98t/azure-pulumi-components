@@ -50,6 +50,80 @@ def test_local_greeting_and_console_logging_without_connection_string(
     assert "Serving the greeting" in caplog.text
 
 
+@pytest.mark.parametrize(
+    ("configured_origins", "origin"),
+    [
+        (None, "http://localhost:5173"),
+        (
+            " https://frontend.azurestaticapps.net, https://www.example.com ",
+            "https://frontend.azurestaticapps.net",
+        ),
+        (
+            " https://frontend.azurestaticapps.net, https://www.example.com ",
+            "https://www.example.com",
+        ),
+    ],
+)
+def test_cors_allows_configured_origins(monkeypatch, configured_origins, origin):
+    monkeypatch.delenv("APPLICATIONINSIGHTS_CONNECTION_STRING", raising=False)
+    if configured_origins is None:
+        monkeypatch.delenv("CORS_ALLOWED_ORIGINS", raising=False)
+    else:
+        monkeypatch.setenv("CORS_ALLOWED_ORIGINS", configured_origins)
+    module = load_app()
+
+    with TestClient(module.app) as client:
+        response = client.get("/check", headers={"Origin": origin})
+        preflight = client.options(
+            "/check",
+            headers={
+                "Origin": origin,
+                "Access-Control-Request-Method": "GET",
+                "Access-Control-Request-Headers": "X-Request-ID",
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.json() == {"message": "Hello from Azure Web App!"}
+    assert response.headers["access-control-allow-origin"] == origin
+    assert "access-control-allow-credentials" not in response.headers
+    assert preflight.status_code == 200
+    assert preflight.headers["access-control-allow-origin"] == origin
+    assert preflight.headers["access-control-allow-methods"] == "GET"
+    assert preflight.headers["access-control-allow-headers"] == "X-Request-ID"
+
+
+@pytest.mark.parametrize(
+    ("origin", "method"),
+    [
+        ("https://untrusted.example", "GET"),
+        ("http://localhost:5173", "GET"),
+        ("https://frontend.azurestaticapps.net", "POST"),
+    ],
+)
+def test_cors_rejects_disallowed_preflight(monkeypatch, origin, method):
+    monkeypatch.delenv("APPLICATIONINSIGHTS_CONNECTION_STRING", raising=False)
+    monkeypatch.setenv(
+        "CORS_ALLOWED_ORIGINS", "https://frontend.azurestaticapps.net"
+    )
+    module = load_app()
+
+    with TestClient(module.app) as client:
+        response = client.options(
+            "/check",
+            headers={
+                "Origin": origin,
+                "Access-Control-Request-Method": method,
+            },
+        )
+        greeting = client.get(
+            "/check", headers={"Origin": "https://untrusted.example"}
+        )
+
+    assert response.status_code == 400
+    assert "access-control-allow-origin" not in greeting.headers
+
+
 def test_telemetry_configuration_errors_are_not_suppressed(monkeypatch):
     monkeypatch.setenv("APPLICATIONINSIGHTS_CONNECTION_STRING", "invalid")
     with patch(

@@ -1,7 +1,10 @@
 import logging
-
+import os
 import uvicorn
+from pathlib import Path
+from dotenv import load_dotenv
 
+load_dotenv(Path(__file__).with_name(".env"))
 
 class BelowErrorFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
@@ -13,7 +16,7 @@ LOGGING_CONFIG = {
     "disable_existing_loggers": False,
     "filters": {"below_error": {"()": BelowErrorFilter}},
     "formatters": {
-        "default": {"format": "%(levelname)s:%(name)s:%(message)s"},
+        "default": {"format": "%(levelname)s: %(message)s"},
     },
     "handlers": {
         "stdout": {
@@ -45,4 +48,5 @@ if __name__ == "__main__":
         host="0.0.0.0",
         port=8000,
         log_config=LOGGING_CONFIG,
+        reload=True
     )

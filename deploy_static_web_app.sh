@@ -13,8 +13,8 @@ if [[ -z "$static_web_app_name" || -z "$resource_group" ]]; then
 fi
 
 cd source/frontend
-npm ci
-npm run build
+
+VITE_ENV=dev pnpm build
 
 if [[ ! -s dist/index.html ]]; then
   printf 'Frontend build is missing dist/index.html; deployment cancelled.\n' >&2

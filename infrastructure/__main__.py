@@ -19,6 +19,14 @@ function_app = FunctionAppComponent(
 )
 #####################################################################
 
+# static web app test
+#####################################################################
+static_web_app = StaticWebAppComponent(
+    name=f"{base_name}-frontend",
+    location=location,
+)
+#####################################################################
+
 # web app app test
 #####################################################################
 network_stack = pulumi.StackReference(
@@ -26,18 +34,14 @@ network_stack = pulumi.StackReference(
 )
 
 subnet_id = network_stack.require_output("subnet_id")
-
+print(str(static_web_app.outputs['static_web_app_url']))
 web_app = WebAppComponent(
     name=f"{base_name}-web-app",
     location=location,
-    subnet_id=subnet_id
+    subnet_id=subnet_id,
+    allowed_origins=str(static_web_app.outputs['static_web_app_url'])
 )
 #####################################################################
-
-static_web_app = StaticWebAppComponent(
-    name=f"{base_name}-frontend",
-    location=location,
-)
 
 export_component_outputs("function-app", function_app.ouptuts)
 export_component_outputs("web-app", web_app.outputs)

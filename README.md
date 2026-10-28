@@ -147,8 +147,9 @@ Frontend configuration is visible to users; never include backend secrets in it.
 ### React and Vite Frontend Example
 
 The sample in [source/frontend](source/frontend) uses React and Vite, with a simple
-interactive counter managed by React state. It runs independently of the FastAPI
-backend. The UI is defined in [App.jsx](source/frontend/src/App.jsx).
+interactive counter managed by React state. On mount, it requests the FastAPI
+`/check` greeting and displays loading, success, or error state. Pending requests
+are cancelled on unmount. The UI is defined in [App.jsx](source/frontend/src/App.jsx).
 
 From the repository root:
 
@@ -171,6 +172,70 @@ Web App. For a deployment workflow, use `source/frontend` as the app location,
 to the app. The Vite development and preview servers are for local use, not
 production hosting. Dependencies and generated build files are ignored by Git;
 the npm lockfile is committed for reproducible installs.
+
+### Backend CORS
+
+The FastAPI app uses `CORSMiddleware` to allow cross-origin GET requests.
+By default, it allows `http://localhost:5173` for Vite development. To configure
+production access, set the **backend App Service application setting**
+`CORS_ALLOWED_ORIGINS` to a comma-separated list of exact frontend origins:
+
+```text
+https://YOUR-FRONTEND.azurestaticapps.net,https://www.example.com
+```
+
+This replaces the localhost default. Origins include the scheme and hostname
+(and port when needed), with no path or trailing slash. Cookie credentials are
+disabled; only GET is allowed by the preflight policy. CORS is not authentication
+and does not prevent non-browser clients from accessing the API.
+
+Redeploy the Python application to install the middleware. App setting changes
+restart the backend; no frontend rebuild is required for this setting. Leave
+App Service's platform CORS unconfigured when using this middleware to avoid
+conflicting policies.
+
+### Frontend API Calls
+
+Use [apiRequest](source/frontend/src/api.js) for JSON API requests. It accepts a
+URL and standard `fetch` options, returns parsed JSON, and returns `undefined` for
+HTTP 204/205 responses. HTTP errors throw an error containing the status code;
+network, cancellation, and JSON parsing errors propagate to the caller. Catch
+errors in your UI and display an appropriate message rather than silently
+ignoring them.
+
+```javascript
+import { apiRequest } from './api.js';
+
+const greeting = await apiRequest('https://your-api.azurewebsites.net/check');
+
+const item = await apiRequest('https://your-api.azurewebsites.net/items', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ name: 'example' }),
+});
+```
+
+Replace the API hostname with your backend's URL. The POST example illustrates
+usage; the sample backend only implements `/check`. Cross-origin calls require
+the backend to allow your frontend origin through CORS. Do not put server secrets
+in frontend code. This helper does not change the existing counter UI or make
+requests automatically; the `App` component calls it from a load-time effect.
+
+Set `VITE_API_BASE_URL` in `source/frontend/.env.local` before starting Vite:
+
+```dotenv
+VITE_API_BASE_URL=http://localhost:8000
+```
+
+Use your App Service's HTTPS base URL for production builds. Restart the dev
+server after changing this value, and rebuild/redeploy for production changes:
+Vite embeds these values at build time, not at runtime. The UI reports an error
+if the URL is missing or the response does not contain a `message` string.
+The backend must allow the frontend origin through CORS. In development,
+React Strict Mode may start an extra request; effect cleanup cancels the obsolete
+request and prevents it from updating state.
+
+Run the helper's tests from `source/frontend` with `npm test`.
 
 ### Deploying the Frontend
 
