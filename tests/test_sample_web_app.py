@@ -55,7 +55,7 @@ def test_local_greeting_and_console_logging_without_connection_string(
     [
         (None, "http://localhost:5173"),
         (
-            " https://frontend.azurestaticapps.net, https://www.example.com ",
+            " https://frontend.azurestaticapps.net, , https://www.example.com, ",
             "https://frontend.azurestaticapps.net",
         ),
         (
@@ -67,9 +67,9 @@ def test_local_greeting_and_console_logging_without_connection_string(
 def test_cors_allows_configured_origins(monkeypatch, configured_origins, origin):
     monkeypatch.delenv("APPLICATIONINSIGHTS_CONNECTION_STRING", raising=False)
     if configured_origins is None:
-        monkeypatch.delenv("CORS_ALLOWED_ORIGINS", raising=False)
+        monkeypatch.delenv("CORS_ORIGINS", raising=False)
     else:
-        monkeypatch.setenv("CORS_ALLOWED_ORIGINS", configured_origins)
+        monkeypatch.setenv("CORS_ORIGINS", configured_origins)
     module = load_app()
 
     with TestClient(module.app) as client:
@@ -104,7 +104,7 @@ def test_cors_allows_configured_origins(monkeypatch, configured_origins, origin)
 def test_cors_rejects_disallowed_preflight(monkeypatch, origin, method):
     monkeypatch.delenv("APPLICATIONINSIGHTS_CONNECTION_STRING", raising=False)
     monkeypatch.setenv(
-        "CORS_ALLOWED_ORIGINS", "https://frontend.azurestaticapps.net"
+        "CORS_ORIGINS", "https://frontend.azurestaticapps.net"
     )
     module = load_app()
 
@@ -162,7 +162,7 @@ def test_console_logs_use_stdout_and_filter_azure_sdk_noise(monkeypatch):
         check=True,
     )
 
-    assert "INFO:web_app:Serving the greeting" in result.stdout
+    assert "INFO: Serving the greeting" in result.stdout
     assert "Routine SDK request" not in result.stdout
     assert "SDK warning retained" in result.stdout
     assert "SDK error retained" in result.stderr

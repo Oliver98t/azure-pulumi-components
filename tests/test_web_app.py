@@ -71,6 +71,9 @@ def test_web_app_component_configures_linux_plan_and_vnet_integration(
         "sample",
         "uksouth",
         pulumi.Output.from_input(SUBNET_ID),
+        allowed_origins=pulumi.Output.from_input(
+            "https://frontend.azurestaticapps.net"
+        ),
     )
 
     def assert_outputs(values):
@@ -97,6 +100,7 @@ def test_web_app_component_configures_linux_plan_and_vnet_integration(
             for setting in app_inputs["siteConfig"]["appSettings"]
         }
         assert settings == {
+            "CORS_ORIGINS": "https://frontend.azurestaticapps.net",
             "APPLICATIONINSIGHTS_CONNECTION_STRING": "InstrumentationKey=test-key",
             "SCM_DO_BUILD_DURING_DEPLOYMENT": "1",
         }
